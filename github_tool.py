@@ -1,8 +1,12 @@
 import requests
 
+
 def get_repo_info(owner, repo):
-    url = f"https://api.github.com/repos/hemand18/AI-Native-Life"
-    response = requests.get(url)
+    if not owner or not repo:
+        return None
+
+    url = f"https://api.github.com/repos/{owner}/{repo}"
+    response = requests.get(url, timeout=10)
     if response.status_code != 200:
         return None
     data = response.json()
@@ -14,17 +18,25 @@ def get_repo_info(owner, repo):
         "topics": data.get("topics", [])
     }
 
+
 def get_readme(owner, repo):
-    url = f"https://api.github.com/repos/hemand18/AI-Native-Life/readme"
+    if not owner or not repo:
+        return None
+
+    url = f"https://api.github.com/repos/{owner}/{repo}/readme"
     headers = {"Accept": "application/vnd.github.raw"}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=10)
     if response.status_code != 200:
         return None
     return response.text
 
+
 def get_file_list(owner, repo, path=""):
-    url = f"https://api.github.com/repos/hemand18/AI-Native-Life/contents/{path}"
-    response = requests.get(url)
+    if not owner or not repo:
+        return []
+
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+    response = requests.get(url, timeout=10)
     if response.status_code != 200:
         return []
     items = response.json()
