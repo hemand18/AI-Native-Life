@@ -73,6 +73,78 @@ or
     except (json.JSONDecodeError, ValueError):
         return {"type": "none"}
 
+def draft_resume_bullets(owner, repo):
+    info = get_repo_info(owner, repo)
+    readme = get_readme(owner, repo)
+    files = get_file_list(owner, repo)
+
+    if info is None:
+        return "Couldn't find that repository. Check the owner/repo name and that it's public."
+
+    context = f"""
+Repository: {info['name']}
+Description: {info['description'] or 'None provided'}
+Primary language: {info['language'] or 'Not detected'}
+Top-level files: {', '.join(files) if files else 'None found'}
+
+README content:
+{readme[:3000] if readme else 'No README found.'}
+"""
+
+    prefs = memory.load_preferences()
+    prefs_text = "\n".join(f"- {k}: {v}" for k, v in prefs.items()) if prefs else "None set."
+
+    prompt = f"""You are a resume-writing assistant. Based ONLY on the real project data below,
+write 3-4 resume bullet points for this project. Follow these rules strictly:
+
+- Start each bullet with a strong action verb (Built, Designed, Implemented, Engineered, etc.)
+- Only claim things that are actually supported by the data below — never invent metrics,
+  technologies, or outcomes that aren't evidenced
+- If there's no evidence of impact/results/metrics, write the bullet around what was built and
+  how, not a fabricated impact number
+- Keep each bullet to one line, resume-style (no full sentences with "I")
+
+User's preferences to respect: {prefs_text}
+
+PROJECT DATA:
+{context}
+
+Return ONLY the bullet points, one per line, starting with "- "
+"""
+
+    response = client.chat.completions.create(
+        model="openai/gpt-oss-20b",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.choices[0].message.content
+
+def plan_goal(goal_title):
+    prefs = memory.load_preferences()
+    prefs_text = "\n".join(f"- {k}: {v}" for k, v in prefs.items()) if prefs else "None set."
+
+    prompt = f"""You are a planning assistant. Break the following goal into a realistic
+4-week plan. Be specific and actionable. Avoid vague advice like "work hard" or "practice more."
+
+GOAL: {goal_title}
+
+User's preferences to respect: {prefs_text}
+
+Format your response as:
+**Week 1:** (2-3 concrete tasks)
+**Week 2:** (2-3 concrete tasks)
+**Week 3:** (2-3 concrete tasks)
+**Week 4:** (2-3 concrete tasks)
+
+Keep each task one line, specific enough that the person knows exactly what to do.
+"""
+
+    response = client.chat.completions.create(
+        model="openai/gpt-oss-20b",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.choices[0].message.content
 
 def analyze_repo_for_resume(owner, repo):
     # STEP 1: ACT — call the tool to gather real data
