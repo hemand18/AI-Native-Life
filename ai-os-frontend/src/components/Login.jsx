@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import Logo from "./Logo.jsx";
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -30,14 +31,11 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-wrap">
       <form className="card login" onSubmit={submit}>
-        <h1 className="title">My AI OS</h1>
+        <Logo size={44} />
+        <p className="muted">Your AI workspace for projects, goals and notes.</p>
         <div className="tabs">
-          <button type="button" className={"tab" + (mode === "login" ? " active" : "")} onClick={() => setMode("login")}>
-            Log in
-          </button>
-          <button type="button" className={"tab" + (mode === "signup" ? " active" : "")} onClick={() => setMode("signup")}>
-            Sign up
-          </button>
+          <button type="button" className={"tab" + (mode === "login" ? " active" : "")} onClick={() => setMode("login")}>Log in</button>
+          <button type="button" className={"tab" + (mode === "signup" ? " active" : "")} onClick={() => setMode("signup")}>Sign up</button>
         </div>
         <label>
           Username
@@ -45,16 +43,11 @@ export default function Login({ onLogin }) {
         </label>
         <label>
           Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === "signup" ? "new-password" : "current-password"}
-          />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} />
         </label>
         {error && <p className="error">{error}</p>}
         <button className="btn primary" disabled={busy}>
-          {busy ? "Please wait…" : mode === "signup" ? "Create account" : "Log in"}
+          {busy ? "Please wait… the server may be waking up" : mode === "signup" ? "Create account" : "Log in"}
         </button>
       </form>
     </div>
