@@ -31,7 +31,7 @@ export default function Chat({ messages, setMessages }) {
   const endRef = useRef(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: sending ? "auto" : "smooth" });
   }, [messages, sending]);
 
   async function send(raw) {
@@ -39,13 +39,24 @@ export default function Chat({ messages, setMessages }) {
     if (!text || sending) return;
     setError("");
     setInput("");
-    setMessages((m) => [...m, { role: "user", content: text }]);
+    setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setSending(true);
     try {
-      const res = await api.chat(text);
-      setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
+      await api.chatStream(text, (chunk) =>
+        setMessages((m) => {
+          const copy = [...m];
+          const last = copy[copy.length - 1];
+          copy[copy.length - 1] = { ...last, content: last.content + chunk };
+          return copy;
+        })
+      );
     } catch (err) {
       setError(err.message);
+      // drop the empty placeholder if nothing was received
+      setMessages((m) => {
+        const last = m[m.length - 1];
+        return last && last.role === "assistant" && last.content === "" ? m.slice(0, -1) : m;
+      });
     } finally {
       setSending(false);
     }
@@ -74,21 +85,18 @@ export default function Chat({ messages, setMessages }) {
         )}
         {messages.map((m, i) => (
           <div key={i} className={"bubble " + m.role}>
-            {m.role === "assistant" ? (
+            {m.role === "user" ? (
+              m.content
+            ) : !m.content && sending ? (
+              <span className="dots" aria-label="Thinking"><i /><i /><i /></span>
+            ) : (
               <>
                 <ReactMarkdown>{m.content}</ReactMarkdown>
-                <Copy text={m.content} />
+                {m.content && !(sending && i === messages.length - 1) && <Copy text={m.content} />}
               </>
-            ) : (
-              m.content
             )}
           </div>
         ))}
-        {sending && (
-          <div className="bubble assistant" aria-label="Thinking">
-            <span className="dots"><i /><i /><i /></span>
-          </div>
-        )}
         <div ref={endRef} />
       </div>
       {error && <p className="error">{error}</p>}

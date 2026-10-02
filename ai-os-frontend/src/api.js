@@ -26,6 +26,11 @@ export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }
 
+function errorText(data) {
+  const detail = data && data.detail;
+  return typeof detail === "string" ? detail : "Invalid input. Please check what you entered.";
+}
+
 async function request(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
@@ -50,10 +55,40 @@ async function request(path, { method = "GET", body } = {}) {
 
   if (!res.ok) {
     if (res.status === 401 && !path.startsWith("/auth/")) onUnauthorized();
-    const detail = data && data.detail;
-    throw new Error(typeof detail === "string" ? detail : "Invalid input. Please check what you entered.");
+    throw new Error(errorText(data));
   }
   return data;
+}
+
+// Streams the reply and calls onChunk(text) for each piece as it arrives.
+async function chatStream(message, onChunk) {
+  const headers = { "Content-Type": "application/json" };
+  if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
+
+  let res;
+  try {
+    res = await fetch(`${BASE}/chat/stream`, { method: "POST", headers, body: JSON.stringify({ message }) });
+  } catch {
+    throw new Error("Can't reach the server. Is the backend running?");
+  }
+
+  if (!res.ok) {
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (res.status === 401) onUnauthorized();
+    throw new Error(errorText(data));
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    if (text) onChunk(text);
+  }
 }
 
 export const api = {
@@ -62,6 +97,7 @@ export const api = {
 
   messages: () => request("/messages"),
   chat: (message) => request("/chat", { method: "POST", body: { message } }),
+  chatStream,
   analyze: (owner, repo) => request("/analyze", { method: "POST", body: { owner, repo } }),
   bullets: (owner, repo) => request("/bullets", { method: "POST", body: { owner, repo } }),
 

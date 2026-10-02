@@ -81,8 +81,13 @@ def spend_quota(user_id, cost):
 
 @asynccontextmanager
 async def lifespan(app):
-    memory.init_db()
-    init_usage_table()
+    app.state.db_startup_error = None
+    try:
+        memory.init_db()
+        init_usage_table()
+    except Exception as exc:
+        app.state.db_startup_error = str(exc)
+        print(f"WARNING: database startup failed: {exc}")
     yield
 
 
@@ -184,7 +189,12 @@ class GoalStatusIn(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "ai_configured": groq_client is not None}
+    return {
+        "ok": True,
+        "ai_configured": groq_client is not None,
+        "database_ready": getattr(app.state, "db_startup_error", None) is None,
+        "database_error": getattr(app.state, "db_startup_error", None),
+    }
 
 
 @app.post("/auth/signup", status_code=201)

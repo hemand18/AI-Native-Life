@@ -7,12 +7,12 @@ from datetime import datetime
 
 def get_connection():
     return psycopg2.connect(
-        host=os.environ.get("PG_HOST"),
-        port=os.environ.get("PG_PORT"),
+        host=os.environ.get("PG_HOST", "localhost"),
+        port=os.environ.get("PG_PORT", "5432"),
         user=os.environ.get("PG_USER"),
         password=os.environ.get("PG_PASSWORD"),
         dbname=os.environ.get("PG_DATABASE"),
-        sslmode="require"
+        sslmode=os.environ.get("PG_SSLMODE", "prefer")
     )
 
 
