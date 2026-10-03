@@ -1,6 +1,9 @@
 .env
+.env.*
+!.env.example
 chroma_db/
 __pycache__/
 *.pyc
-chroma_db/
-.env
+ai-os-frontend/.env
+ai-os-frontend/.env.*
+!ai-os-frontend/.env.example
