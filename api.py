@@ -189,8 +189,17 @@ class GoalStatusIn(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "ai_configured": groq_client is not None, "database_ready": db_ready}
-
+    try:
+        conn = memory.get_connection()
+        conn.close()
+        database_ready = True
+    except Exception:
+        database_ready = False
+    return {
+        "ok": True,
+        "ai_configured": groq_client is not None,
+        "database_ready": database_ready,
+    }
 
 @app.post("/auth/signup", status_code=201)
 def signup(body: Credentials):
