@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 import jwt
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -252,6 +253,55 @@ def chat(body: ChatIn, user=Depends(quota(1))):
     memory.save_message(uid, "assistant", reply)
     return {"reply": reply}
 
+@app.post("/chat/stream")
+def chat_stream(body: ChatIn, user=Depends(quota(1))):
+    if groq_client is None:
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY is not configured on the server")
+    uid = user["user_id"]
+    text = body.message.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Message is empty")
+
+    memory.save_message(uid, "user", text)
+    history = memory.load_messages(uid)[-30:]
+
+    try:
+        chunks = query_documents(text)
+    except Exception:
+        chunks = []
+
+    messages = list(history)
+    if chunks:
+        messages.insert(0, {"role": "system", "content": "Use this context if relevant:\n\n" + "\n\n".join(chunks)})
+
+    try:
+        stream = groq_client.chat.completions.create(model=MODEL, messages=messages, stream=True)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"The AI request failed ({type(e).__name__}). Check the backend logs.")
+
+    def generate():
+        parts = []
+        try:
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    parts.append(delta)
+                    yield delta
+        except Exception:
+            tail = "\n\n[The response was interrupted.]"
+            parts.append(tail)
+            yield tail
+        finally:
+            if parts:
+                memory.save_message(uid, "assistant", "".join(parts))
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 @app.post("/analyze")
 def analyze(body: RepoIn, user=Depends(quota(3))):
