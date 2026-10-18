@@ -378,6 +378,9 @@ def set_goal_status(goal_id: int, body: GoalStatusIn, user=Depends(current_user)
     memory.update_goal_status(user["user_id"], goal_id, body.status)
     return {"ok": True}
 
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 @app.delete("/goals/{goal_id}")
 def remove_goal(goal_id: int, user=Depends(current_user)):
