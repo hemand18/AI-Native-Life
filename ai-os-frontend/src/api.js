@@ -1,6 +1,8 @@
 const BASE =
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? "http://localhost:8000" : "https://ai-native-life.onrender.com");
+  (import.meta.env.DEV
+    ? "http://localhost:8000"
+    : "https://ai-native-life.onrender.com");
 const TOKEN_KEY = "ai_os_token";
 const USER_KEY = "ai_os_user";
 
